@@ -50,10 +50,18 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             };
         }
     }
+}
 
+namespace TheSanity.GlobalNPC.Bosses.EmpressRework
+{
     // Boss Stats & Modification
-    public class EmpressStatsModifier : GlobalNPC
+    public class EmpressStatsModifier : ModNPC
     {
+        public override void SetDefaults()
+        {
+            NPC.CloneDefaults(NPCID.HallowBoss);
+        }
+
         public override void ModifyNPC(NPC npc)
         {
             if (npc.type == NPCID.HallowBoss)
@@ -67,71 +75,80 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             }
         }
     }
+}
 
+namespace TheSanity.GlobalNPC.Bosses.EmpressRework
+{
     // Advanced AI System
     public class EmpressAdvancedAI : GlobalNPC
     {
-        // Phase Management
-        private float phase1AttackCounter = 0;
-        private float phase2AttackCounter = 0;
-        private float phase3AttackCounter = 0;
-        private float telegraphDelay = 0f;
-        private int currentAttackType = 0;
-        private float enrageTimer = 0f;
-        private float maxEnrageTime = 3600f; // 60 seconds at 60 FPS
-        private bool isEnraged = false;
+        // Dictionary untuk track data per NPC
+        private Dictionary<int, EmpressAIData> npcData = new Dictionary<int, EmpressAIData>();
 
-        // AI Behavior
-        private Vector2 targetPosition = Vector2.Zero;
-        private float movementCounter = 0f;
-        private List<Vector2> dodgePositions = new List<Vector2>();
-        private float dodgeCounter = 0f;
-        private bool isDodging = false;
-        private float healthThreshold = 0f;
-
-        // Statistics
-        private int totalAttacksLanded = 0;
-        private float totalDamageDealt = 0f;
-        private float battleDuration = 0f;
+        private class EmpressAIData
+        {
+            public float phase1AttackCounter = 0;
+            public float phase2AttackCounter = 0;
+            public float phase3AttackCounter = 0;
+            public float telegraphDelay = 0f;
+            public int currentAttackType = 0;
+            public float enrageTimer = 0f;
+            public float maxEnrageTime = 3600f;
+            public bool isEnraged = false;
+            public Vector2 targetPosition = Vector2.Zero;
+            public float movementCounter = 0f;
+            public float dodgeCounter = 0f;
+            public bool isDodging = false;
+            public float healthThreshold = 0f;
+            public int totalAttacksLanded = 0;
+            public float totalDamageDealt = 0f;
+            public float battleDuration = 0f;
+        }
 
         public override void AI(NPC npc)
         {
             if (npc.type != NPCID.HallowBoss)
                 return;
 
-            battleDuration++;
-            enrageTimer++;
+            // Get or create data for this NPC
+            if (!npcData.ContainsKey(npc.whoAmI))
+                npcData[npc.whoAmI] = new EmpressAIData();
+
+            EmpressAIData data = npcData[npc.whoAmI];
+
+            data.battleDuration++;
+            data.enrageTimer++;
 
             float healthPercent = npc.life / (float)npc.lifeMax;
-            healthThreshold = healthPercent;
+            data.healthThreshold = healthPercent;
 
             // Enrage System
-            if (enrageTimer > maxEnrageTime)
+            if (data.enrageTimer > data.maxEnrageTime)
             {
-                isEnraged = true;
-                ApplyEnrageEffects(npc);
+                data.isEnraged = true;
+                ApplyEnrageEffects(npc, data);
             }
 
             // Determine Phase
             if (healthPercent > 0.66f)
             {
-                ExecutePhase1AI(npc, healthPercent);
+                ExecutePhase1AI(npc, healthPercent, data);
             }
             else if (healthPercent > 0.33f)
             {
-                ExecutePhase2AI(npc, healthPercent);
+                ExecutePhase2AI(npc, healthPercent, data);
             }
             else
             {
-                ExecutePhase3AI(npc, healthPercent);
+                ExecutePhase3AI(npc, healthPercent, data);
             }
 
             // Advanced Movement AI
-            UpdateMovementAI(npc);
-            UpdateDodgeAI(npc);
+            UpdateMovementAI(npc, data);
+            UpdateDodgeAI(npc, data);
         }
 
-        private void ApplyEnrageEffects(NPC npc)
+        private void ApplyEnrageEffects(NPC npc, EmpressAIData data)
         {
             // Visual effects untuk enrage
             for (int i = 0; i < 5; i++)
@@ -141,22 +158,22 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             }
 
             // Speed up attack cadence
-            phase1AttackCounter *= 0.8f;
-            phase2AttackCounter *= 0.8f;
-            phase3AttackCounter *= 0.8f;
+            data.phase1AttackCounter *= 0.8f;
+            data.phase2AttackCounter *= 0.8f;
+            data.phase3AttackCounter *= 0.8f;
         }
 
-        private void UpdateMovementAI(NPC npc)
+        private void UpdateMovementAI(NPC npc, EmpressAIData data)
         {
             Player target = Main.player[npc.target];
             if (target == null) return;
 
-            movementCounter++;
+            data.movementCounter++;
 
             // Intelligent positioning every 30 frames
-            if (movementCounter > 30)
+            if (data.movementCounter > 30)
             {
-                movementCounter = 0;
+                data.movementCounter = 0;
 
                 // Calculate optimal distance
                 float optimalDistance = 200f + (50f * (int)EmpressConfig.CurrentDifficulty);
@@ -165,41 +182,41 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                 if (distanceToPlayer > optimalDistance + 100)
                 {
                     // Move closer
-                    targetPosition = target.Center - Vector2.Normalize(target.Center - npc.Center) * optimalDistance;
+                    data.targetPosition = target.Center - Vector2.Normalize(target.Center - npc.Center) * optimalDistance;
                 }
                 else if (distanceToPlayer < optimalDistance - 100)
                 {
                     // Move away
-                    targetPosition = target.Center + Vector2.Normalize(target.Center - npc.Center) * optimalDistance;
+                    data.targetPosition = target.Center + Vector2.Normalize(target.Center - npc.Center) * optimalDistance;
                 }
                 else
                 {
                     // Circle around player
                     float angle = (float)Main.rand.NextDouble() * MathHelper.TwoPi;
-                    targetPosition = target.Center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * optimalDistance;
+                    data.targetPosition = target.Center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * optimalDistance;
                 }
             }
 
             // Smooth movement to target
-            Vector2 moveDirection = Vector2.Normalize(targetPosition - npc.Center);
+            Vector2 moveDirection = Vector2.Normalize(data.targetPosition - npc.Center);
             float moveSpeed = 5f + (2f * (int)EmpressConfig.CurrentDifficulty);
             npc.velocity = Vector2.Lerp(npc.velocity, moveDirection * moveSpeed, 0.1f);
         }
 
-        private void UpdateDodgeAI(NPC npc)
+        private void UpdateDodgeAI(NPC npc, EmpressAIData data)
         {
             // Every 60 frames, check for player projectiles to dodge
-            dodgeCounter++;
-            if (dodgeCounter > 60)
+            data.dodgeCounter++;
+            if (data.dodgeCounter > 60)
             {
-                dodgeCounter = 0;
+                data.dodgeCounter = 0;
 
                 // Check nearby projectiles
                 foreach (Projectile proj in Main.projectile)
                 {
                     if (proj.active && proj.hostile && Vector2.Distance(proj.Center, npc.Center) < 300)
                     {
-                        isDodging = true;
+                        data.isDodging = true;
                         Vector2 dodgeDir = Vector2.Normalize(npc.Center - proj.Center);
                         npc.velocity += dodgeDir * 8f;
                         break;
@@ -207,33 +224,33 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                 }
             }
 
-            if (isDodging)
+            if (data.isDodging)
             {
-                dodgeCounter = 30; // Extend dodge time
-                if (dodgeCounter <= 0)
-                    isDodging = false;
+                data.dodgeCounter = 30;
+                if (data.dodgeCounter <= 0)
+                    data.isDodging = false;
             }
         }
 
         // ===== PHASE 1 AI =====
-        private void ExecutePhase1AI(NPC npc, float healthPercent)
+        private void ExecutePhase1AI(NPC npc, float healthPercent, EmpressAIData data)
         {
-            phase1AttackCounter++;
+            data.phase1AttackCounter++;
             float attackSpeedMult = EmpressConfig.GetAttackSpeedMultiplier();
             float cooldown = 90f / attackSpeedMult;
 
-            if (phase1AttackCounter >= cooldown)
+            if (data.phase1AttackCounter >= cooldown)
             {
-                phase1AttackCounter = 0;
-                currentAttackType = Main.rand.Next(0, 15); // 15 attacks untuk phase 1
-                telegraphDelay = 30f;
+                data.phase1AttackCounter = 0;
+                data.currentAttackType = Main.rand.Next(0, 15);
+                data.telegraphDelay = 30f;
             }
 
-            HandleTelegraph(npc, telegraphDelay);
+            HandleTelegraph(npc, data.telegraphDelay);
 
-            if (telegraphDelay <= 0)
+            if (data.telegraphDelay <= 0)
             {
-                switch (currentAttackType)
+                switch (data.currentAttackType)
                 {
                     case 0: Phase1_HomingBurstAttack(npc); break;
                     case 1: Phase1_LaserBeamPattern(npc); break;
@@ -251,31 +268,31 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                     case 13: Phase1_CrossBurst(npc); break;
                     case 14: Phase1_CurvedWave(npc); break;
                 }
-                totalAttacksLanded++;
+                data.totalAttacksLanded++;
             }
 
-            telegraphDelay--;
+            data.telegraphDelay--;
         }
 
         // ===== PHASE 2 AI =====
-        private void ExecutePhase2AI(NPC npc, float healthPercent)
+        private void ExecutePhase2AI(NPC npc, float healthPercent, EmpressAIData data)
         {
-            phase2AttackCounter++;
+            data.phase2AttackCounter++;
             float attackSpeedMult = EmpressConfig.GetAttackSpeedMultiplier();
             float cooldown = 75f / attackSpeedMult;
 
-            if (phase2AttackCounter >= cooldown)
+            if (data.phase2AttackCounter >= cooldown)
             {
-                phase2AttackCounter = 0;
-                currentAttackType = Main.rand.Next(0, 18); // 18 attacks untuk phase 2
-                telegraphDelay = 25f;
+                data.phase2AttackCounter = 0;
+                data.currentAttackType = Main.rand.Next(0, 18);
+                data.telegraphDelay = 25f;
             }
 
-            HandleTelegraph(npc, telegraphDelay);
+            HandleTelegraph(npc, data.telegraphDelay);
 
-            if (telegraphDelay <= 0)
+            if (data.telegraphDelay <= 0)
             {
-                switch (currentAttackType)
+                switch (data.currentAttackType)
                 {
                     case 0: Phase2_ComboAttack(npc); break;
                     case 1: Phase2_ScreenFillingProjectiles(npc); break;
@@ -296,31 +313,31 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                     case 16: Phase2_SweepVortex(npc); break;
                     case 17: Phase2_DenseSpiral(npc); break;
                 }
-                totalAttacksLanded++;
+                data.totalAttacksLanded++;
             }
 
-            telegraphDelay--;
+            data.telegraphDelay--;
         }
 
         // ===== PHASE 3 AI (EXTREME) =====
-        private void ExecutePhase3AI(NPC npc, float healthPercent)
+        private void ExecutePhase3AI(NPC npc, float healthPercent, EmpressAIData data)
         {
-            phase3AttackCounter++;
+            data.phase3AttackCounter++;
             float attackSpeedMult = EmpressConfig.GetAttackSpeedMultiplier();
             float cooldown = 60f / attackSpeedMult;
 
-            if (phase3AttackCounter >= cooldown)
+            if (data.phase3AttackCounter >= cooldown)
             {
-                phase3AttackCounter = 0;
-                currentAttackType = Main.rand.Next(0, 20); // 20 attacks untuk phase 3
-                telegraphDelay = 20f;
+                data.phase3AttackCounter = 0;
+                data.currentAttackType = Main.rand.Next(0, 20);
+                data.telegraphDelay = 20f;
             }
 
-            HandleTelegraph(npc, telegraphDelay);
+            HandleTelegraph(npc, data.telegraphDelay);
 
-            if (telegraphDelay <= 0)
+            if (data.telegraphDelay <= 0)
             {
-                switch (currentAttackType)
+                switch (data.currentAttackType)
                 {
                     case 0: Phase3_ExtremeCombo(npc); break;
                     case 1: Phase3_ProjectileHell(npc); break;
@@ -343,10 +360,10 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                     case 18: Phase3_MeteoralStrike(npc); break;
                     case 19: Phase3_FinalPhaseBlast(npc); break;
                 }
-                totalAttacksLanded++;
+                data.totalAttacksLanded++;
             }
 
-            telegraphDelay--;
+            data.telegraphDelay--;
         }
 
         private void HandleTelegraph(NPC npc, float delay)
