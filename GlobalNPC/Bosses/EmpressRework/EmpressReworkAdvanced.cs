@@ -54,36 +54,40 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
 
 namespace TheSanity.GlobalNPC.Bosses.EmpressRework
 {
-    // Boss Stats & Modification
-    public class EmpressStatsModifier : ModNPC
+    // Boss Stats Modifier - applies to Empress of Light
+    public class EmpressStatsModifier : GlobalNPC
     {
-        public override void SetDefaults()
-        {
-            NPC.CloneDefaults(NPCID.HallowBoss);
-        }
+        public override bool InstancePerEntity => true;
 
         public override void ModifyNPC(NPC npc)
         {
-            if (npc.type == NPCID.HallowBoss)
-            {
-                float healthMult = EmpressConfig.GetHealthMultiplier();
-                float damageMult = EmpressConfig.GetDamageMultiplier();
+            if (npc.type != NPCID.HallowBoss)
+                return;
 
-                npc.lifeMax = (int)(4200 * healthMult);
-                npc.damage = (int)(55 * damageMult);
-                npc.defense = (int)(15 + (5 * (int)EmpressConfig.CurrentDifficulty));
-            }
+            float healthMult = EmpressConfig.GetHealthMultiplier();
+            float damageMult = EmpressConfig.GetDamageMultiplier();
+
+            // Modify stats based on difficulty
+            npc.lifeMax = (int)(4200 * healthMult);
+            npc.damage = (int)(55 * damageMult);
+            npc.defense = (int)(15 + (5 * (int)EmpressConfig.CurrentDifficulty));
+
+            // Ensure current life doesn't exceed max
+            if (npc.life > npc.lifeMax)
+                npc.life = npc.lifeMax;
         }
     }
 }
 
 namespace TheSanity.GlobalNPC.Bosses.EmpressRework
 {
-    // Advanced AI System
+    // Advanced AI System for Empress
     public class EmpressAdvancedAI : GlobalNPC
     {
-        // Dictionary untuk track data per NPC
+        // Dictionary untuk track data per NPC instance
         private Dictionary<int, EmpressAIData> npcData = new Dictionary<int, EmpressAIData>();
+
+        public override bool InstancePerEntity => false;
 
         private class EmpressAIData
         {
@@ -129,7 +133,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
                 ApplyEnrageEffects(npc, data);
             }
 
-            // Determine Phase
+            // Determine Phase and execute appropriate AI
             if (healthPercent > 0.66f)
             {
                 ExecutePhase1AI(npc, healthPercent, data);
@@ -166,7 +170,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void UpdateMovementAI(NPC npc, EmpressAIData data)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             data.movementCounter++;
 
@@ -388,11 +392,11 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             }
         }
 
-        // ===== PHASE 1 ATTACKS (15 total) =====
+        // ===== PHASE 1 ATTACKS =====
         private void Phase1_HomingBurstAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int i = 0; i < 8; i++)
             {
@@ -405,7 +409,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_LaserBeamPattern(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 3; i++)
@@ -418,7 +422,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_ChargeAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
             npc.velocity = Vector2.Normalize(target.Center - npc.Center) * 12f;
         }
 
@@ -434,7 +438,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_WavePattern(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 5; i++)
@@ -455,7 +459,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_TargetedSpray(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int i = 0; i < 6; i++)
             {
@@ -468,7 +472,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_DiagonalWave(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 4; i++)
@@ -494,7 +498,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_SweepAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 14; i++)
@@ -507,7 +511,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_DoubleLaser(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             Vector2 perpendicular = new Vector2(-direction.Y, direction.X);
@@ -522,7 +526,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_TripleHoming(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int s = 0; s < 3; s++)
             {
@@ -559,7 +563,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase1_CurvedWave(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 7; i++)
@@ -569,11 +573,11 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             }
         }
 
-        // ===== PHASE 2 ATTACKS (18 total) =====
+        // ===== PHASE 2 ATTACKS =====
         private void Phase2_ComboAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int burst = 0; burst < 2; burst++)
             {
@@ -598,7 +602,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_DashAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             npc.velocity = Vector2.Normalize(target.Center - npc.Center) * 15f;
             for (int i = 0; i < 8; i++)
@@ -623,7 +627,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_SpiralPattern(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 15; i++)
@@ -636,7 +640,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_DoubleWave(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             for (int w = 0; w < 2; w++)
@@ -664,7 +668,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_TripleDash(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int d = 0; d < 3; d++)
             {
@@ -690,7 +694,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_PulseWave(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int pulse = 0; pulse < 3; pulse++)
@@ -706,7 +710,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_TrackingShots(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int i = 0; i < 8; i++)
             {
@@ -718,7 +722,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_WallOfProjectiles(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             Vector2 perpendicular = new Vector2(-baseDir.Y, baseDir.X);
@@ -733,7 +737,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_ZigZagPattern(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 12; i++)
@@ -767,7 +771,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_QuadCombo(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int q = 0; q < 4; q++)
             {
@@ -782,7 +786,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase2_SweepVortex(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 20; i++)
@@ -801,11 +805,11 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
             }
         }
 
-        // ===== PHASE 3 ATTACKS (20 total) =====
+        // ===== PHASE 3 ATTACKS =====
         private void Phase3_ExtremeCombo(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int combo = 0; combo < 3; combo++)
             {
@@ -830,7 +834,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_MultiDash(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int d = 0; d < 3; d++)
             {
@@ -880,7 +884,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_InfernoPhase(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 direction = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 8; i++)
@@ -909,7 +913,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_SplittingProjectiles(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int split = 0; split < 3; split++)
             {
@@ -936,7 +940,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_CylinderBarrage(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int ring = 0; ring < 3; ring++)
@@ -961,7 +965,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_SupercomboAttack(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             for (int combo = 0; combo < 4; combo++)
             {
@@ -977,7 +981,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_WaveSlash(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int wave = 0; wave < 4; wave++)
@@ -1003,7 +1007,7 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
         private void Phase3_CrescentMoon(NPC npc)
         {
             Player target = Main.player[npc.target];
-            if (target == null) return;
+            if (target == null || !target.active) return;
 
             Vector2 baseDir = Vector2.Normalize(target.Center - npc.Center);
             for (int i = 0; i < 16; i++)
@@ -1075,13 +1079,15 @@ namespace TheSanity.GlobalNPC.Bosses.EmpressRework
     // Loot & Reward System
     public class EmpressLootSystem : GlobalNPC
     {
+        public override bool InstancePerEntity => false;
+
         public override void OnKill(NPC npc)
         {
             if (npc.type != NPCID.HallowBoss)
                 return;
 
             Player player = Main.player[npc.target];
-            if (player == null) return;
+            if (player == null || !player.active) return;
 
             // Difficulty-based loot drops
             int dropQuantity = 1 + (int)EmpressConfig.CurrentDifficulty;
